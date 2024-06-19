@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    Sam Template for creating DynamoDB tables and Lambda functions
+
+Resources:
+  UserDetailTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: userdetails
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  
+  RecipientDetailTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: recipientdetails
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies: 
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+        - PolicyName: DynamoDBReadWriteListPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: arn:aws:dynamodb:*:*:table/*
+        
+  UserDetailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/addUser.handler
+      Runtime: nodejs18.x
+      Timeout: 10
+      CodeUri: .
+      Environment:
+        Variables:
+          TABLE_NAME_USER: !Ref UserDetailTable
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  RecipientDetailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/addRecipient.handler
+      Runtime: nodejs18.x
+      Timeout: 10
+      CodeUri: .
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref RecipientDetailTable
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+Outputs:
+  UserDetailFunctionArn:
+    Description: "ARN of the User Detail Lambda Function"
+    Value: !GetAtt UserDetailFunction.Arn
+  RecipientDetailFunctionArn:
+    Description: "ARN of the Recipient Detail Lambda Function"
+    Value: !GetAtt RecipientDetailFunction.Arn
+  UserDetailTableName:
+    Description: "DynamoDB Table Name for User Detail"
+    Value: !Ref UserDetailTable
+  RecipientDetailTableName:
+    Description: "DynamoDB Table Name for Recipient Detail"
+    Value: !Ref RecipientDetailTable
